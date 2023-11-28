@@ -32,6 +32,7 @@ async function run() {
     const userCollection = client.db("buildingDB").collection('users');
     const apartmentCollection = client.db('buildingDB').collection('apartment')
     const cartCollection = client.db('buildingDB').collection('carts')
+    const paymentCollection = client.db('buildingDB').collection('payments')
 
     app.post('/jwt', async (req, res) => {
       const user = req.body;
@@ -129,7 +130,9 @@ async function run() {
     })
 
     app.get('/carts', async(req,res)=>{
-      const result = await cartCollection.find().toArray()
+      const email = req.query.email
+      const query = {email: email}
+      const result = await cartCollection.find(query).toArray()
       res.send(result)
     })
 
@@ -170,7 +173,7 @@ async function run() {
 
     app.post('/create-payment-intent', async (req, res) => {
       const { price } = req.body;
-      const amount = parseInt(price * 100);
+      const amount = parseInt(price) * 100;
        
 
       const paymentIntent = await stripe.paymentIntents.create({
@@ -178,13 +181,30 @@ async function run() {
         currency: 'usd',
         payment_method_types: ['card']
       });
-
+ 
       res.send({
         clientSecret: paymentIntent.client_secret
       })
     });
 
-    app.post('/payments')
+    app.get('/payments/:email',verifyToken, async(req, res)=>{
+      const query = {email: req.query.email}
+      if (req.params.email !== req.decoded.email) {
+        return res.status(403).send({message: 'forbidden access'})
+      }
+      const result = await paymentCollection.find(query).toArray()
+      res.send(result)
+    })
+
+    app.post('/payments', async(req,res)=>{
+      const payment = req.body
+      const paymentResult = await paymentCollection.insertOne(payment) 
+      const query = {_id: {
+        $in: payment.cartIds.map(id => new ObjectId(id))
+      }}
+      const deleteResult = await cartCollection.deleteMany(query)
+      res.send({paymentResult,deleteResult})
+    })
 
 
 
