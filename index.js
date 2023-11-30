@@ -32,6 +32,7 @@ async function run() {
     const userCollection = client.db("buildingDB").collection('users');
     const apartmentCollection = client.db('buildingDB').collection('apartment')
     const cartCollection = client.db('buildingDB').collection('carts')
+    const announcementCollection = client.db('buildingDB').collection('announcement')
     const paymentCollection = client.db('buildingDB').collection('payments')
 
     app.post('/jwt', async (req, res) => {
@@ -167,7 +168,21 @@ async function run() {
       delete cartItem._id
       const result = await cartCollection.insertOne(cartItem);
       res.send(result);
+
     });
+
+    // menu
+     app.post('/announcement', verifyToken, verifyAdmin, async (req, res) => {
+      const item = req.body
+      const result = await announcementCollection.insertOne(item)
+      res.send(result)
+     })
+
+     app.get('/announcement',  async(req, res)=>{
+      const result = await announcementCollection.find().toArray()
+      res.send(result)
+
+     })
 
     // payment
 
@@ -187,8 +202,8 @@ async function run() {
       })
     });
 
-    app.get('/payments/:email',verifyToken, async(req, res)=>{
-      const query = {email: req.query.email}
+    app.get('/payments/:email', verifyToken, async(req, res)=>{
+      const query = {email: req.params.email}
       if (req.params.email !== req.decoded.email) {
         return res.status(403).send({message: 'forbidden access'})
       }
